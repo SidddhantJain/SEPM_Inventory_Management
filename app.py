@@ -105,8 +105,6 @@ elif menu == "Cashier":
         st.error("Selected product doesn't have a valid price.")
         price = 0
         total = 0
-
-        
         total = quantity * price
         st.metric("Total", f"${total:.2f}")
 
