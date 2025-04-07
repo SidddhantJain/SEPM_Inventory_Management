@@ -7,3 +7,5 @@ scikit-learn
 openpyxl
 hashlib
 datetime 
+sklearn.linear_model
+plotly.express
