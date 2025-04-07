@@ -7,155 +7,131 @@ from sklearn.linear_model import LinearRegression
 from datetime import datetime
 from io import BytesIO
 
-# Set Streamlit Page Configuration
-st.set_page_config(page_title="Inventory Management", layout="wide", initial_sidebar_state="expanded")
+# Page Config
+st.set_page_config(page_title="Smart Inventory", layout="wide", initial_sidebar_state="expanded")
 
-# Session State Initialization
+# Custom CSS
+st.markdown("""
+    <style>
+        .main { background-color: #f5f7fa; }
+        h1, h2, h3, h4 { color: #2c3e50; }
+        .stButton>button {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+            border-radius: 8px;
+        }
+        .stDownloadButton>button {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+            border-radius: 8px;
+        }
+        .stMetric { background-color: #e3f2fd; padding: 10px; border-radius: 10px; }
+    </style>
+""", unsafe_allow_html=True)
+
+# Session state
 if 'cart' not in st.session_state:
     st.session_state.cart = []
 if 'user_role' not in st.session_state:
     st.session_state.user_role = 'staff'
-if 'dark_mode' not in st.session_state:
-    st.session_state.dark_mode = False
 
-# Dark Mode Toggle
-if st.sidebar.checkbox("🌙 Dark Mode"):
-    st.session_state.dark_mode = True
-    st.markdown("<style>body { background-color: #111; color: #EEE; }</style>", unsafe_allow_html=True)
+# Login
+with st.sidebar:
+    st.image("https://cdn-icons-png.flaticon.com/512/1041/1041916.png", width=80)
+    st.title("Smart Inventory")
+    st.subheader("Login")
+    user = st.text_input("Username", value="admin")
+    role = st.selectbox("Role", ["admin", "staff"])
+    if st.button("Login"):
+        st.session_state.user_role = role
+        st.success(f"Logged in as {user} ({role})")
 
-# User Login (Basic Simulation)
-st.sidebar.title("🔐 Login")
-user = st.sidebar.text_input("Username")
-role = st.sidebar.selectbox("Role", ["admin", "staff"])
-if st.sidebar.button("Login"):
-    st.session_state.user_role = role
-    st.success(f"Logged in as {user} ({role})")
+    st.markdown("---")
+    menu = st.radio("Menu", ["Dashboard", "Inventory", "Cashier", "Reports", "Suppliers", "Customer Feedback"])
 
-# Sidebar Navigation
-st.sidebar.title("MENU")
-menu = st.sidebar.radio("Go to", ["Dashboard", "Inventory", "Cashier", "Reports", "Suppliers"])
-
-# Function to load data
+# Load data
 @st.cache_data
 def load_data(file):
-    file_extension = file.name.split('.')[-1]
-    if file_extension == "csv":
-        df = pd.read_csv(file)
-    elif file_extension in ["xlsm", "xlsx"]:
-        df = pd.read_excel(file, engine='openpyxl')
-    else:
-        st.error("Unsupported file format. Upload CSV or Excel files only.")
-        return None
-    return df
+    ext = file.name.split('.')[-1]
+    if ext == "csv":
+        return pd.read_csv(file)
+    elif ext in ["xlsm", "xlsx"]:
+        return pd.read_excel(file, engine='openpyxl')
+    st.error("Unsupported file format.")
+    return None
 
-# File Upload
-uploaded_file = st.sidebar.file_uploader("Upload Inventory Data (CSV/XLSM)", type=["csv", "xlsm"])
+uploaded_file = st.sidebar.file_uploader("Upload Inventory Data", type=["csv", "xlsm"])
 df = load_data(uploaded_file) if uploaded_file else None
 
-# Admin Panel
+# Admin Controls
 if st.session_state.user_role == "admin":
-    with st.expander("⚙️ Admin Tools"):
-        st.subheader("📁 Upload New Inventory")
+    with st.expander("🛠️ Admin Tools"):
         new_file = st.file_uploader("Upload New Inventory File", type=["csv", "xlsm"], key="admin_upload")
         if new_file:
             df = load_data(new_file)
             st.success("New inventory loaded successfully!")
-
         if df is not None:
-            st.subheader("⬇️ Export Current Inventory")
-            st.download_button("Download Inventory CSV", df.to_csv(index=False), file_name="exported_inventory.csv", mime="text/csv")
+            st.download_button("📥 Download Inventory", df.to_csv(index=False), "inventory.csv")
 
-            st.subheader("🏪 Manage Supplier Info")
-            supplier_name = st.text_input("Supplier Name")
-            supplier_id = st.text_input("Supplier ID")
-            location = st.text_input("Warehouse Location")
-            if st.button("Add Supplier"):
-                new_supplier = pd.DataFrame([{
-                    'Supplier_Name': supplier_name,
-                    'Supplier_ID': supplier_id,
-                    'Warehouse_Location': location
-                }])
-                df = pd.concat([df, new_supplier], ignore_index=True)
-                st.success(f"Supplier {supplier_name} added successfully!")
-
-# Dashboard
+# DASHBOARD
 if menu == "Dashboard":
-    st.title("📊 Inventory Dashboard")
+    st.title("📊 Dashboard")
     if df is not None:
-        st.write("### Current Stock Overview")
-        st.dataframe(df[['Product_Name', 'Stock_Quantity', 'Reorder_Level', 'Unit_Price']])
-
+        st.dataframe(df[['Product_Name', 'Stock_Quantity', 'Reorder_Level', 'Unit_Price']], use_container_width=True)
         low_stock = df[df['Stock_Quantity'] < df['Reorder_Level']]
         if not low_stock.empty:
-            st.warning(f"⚠️ {len(low_stock)} products are below the reorder level!")
-
+            st.warning(f"⚠️ {len(low_stock)} products below reorder level")
         if 'Inventory_Turnover_Rate' in df.columns:
-            st.write("### Inventory Turnover Analysis")
-            fig = px.bar(df, x='Product_Name', y='Inventory_Turnover_Rate', title="Turnover Rate by Product")
-            st.plotly_chart(fig)
-
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Download Current Inventory", csv, "inventory.csv", "text/csv")
+            st.plotly_chart(px.bar(df, x='Product_Name', y='Inventory_Turnover_Rate', title="Turnover Rate"))
     else:
-        st.info("Please upload inventory data.")
+        st.info("Upload inventory data to view dashboard.")
 
-# Inventory Management
+# INVENTORY
 elif menu == "Inventory":
     st.title("📦 Inventory Management")
     if df is not None:
-        st.write("### All Inventory Items")
-        df_edit = st.data_editor(df, use_container_width=True, num_rows="dynamic")
+        st.data_editor(df, use_container_width=True, num_rows="dynamic")
         search = st.text_input("🔍 Search Product")
         if search:
-            results = df[df['Product_Name'].str.contains(search, case=False, na=False)]
-            st.dataframe(results)
+            st.dataframe(df[df['Product_Name'].str.contains(search, case=False)])
         if st.session_state.user_role == "admin":
-            st.success("✔️ Editable table enabled for admins")
-            st.download_button("💾 Download Edited Inventory", df_edit.to_csv(index=False), "updated_inventory.csv", "text/csv")
+            st.download_button("💾 Download Edited", df.to_csv(index=False), "updated_inventory.csv")
     else:
         st.info("Upload data first.")
 
-# Cashier System
+# CASHIER
 elif menu == "Cashier":
     st.title("🛒 Cashier System")
     if df is not None:
-        product = st.selectbox("Select a product", df['Product_Name'])
-        quantity = st.number_input("Enter Quantity", min_value=1, value=1)
-        product_row = df[df['Product_Name'] == product]
-        if not product_row.empty and 'Unit_Price' in product_row.columns:
-            price = product_row['Unit_Price'].values[0]
-            total = quantity * price
-            st.metric("Total", f"${total:.2f}")
-
-            if st.button("Add to Cart"):
-                st.session_state.cart.append({
-                    "Product": product,
-                    "Quantity": quantity,
-                    "Unit Price": price,
-                    "Total": total
-                })
-                st.success(f"{quantity} x {product} added to cart!")
-
-            if st.session_state.cart:
-                st.write("### 🧺 Cart Summary")
-                cart_df = pd.DataFrame(st.session_state.cart)
-                st.dataframe(cart_df)
-                grand_total = cart_df['Total'].sum()
-                st.subheader(f"🧾 Grand Total: ${grand_total:.2f}")
-        else:
-            st.error("Selected product doesn't have a valid price.")
+        product = st.selectbox("Select Product", df['Product_Name'])
+        quantity = st.number_input("Quantity", min_value=1, value=1)
+        row = df[df['Product_Name'] == product]
+        if not row.empty:
+            try:
+                price = float(row['Unit_Price'].values[0])
+                total = quantity * price
+                st.metric("Total", f"${total:.2f}")
+                if st.button("Add to Cart"):
+                    st.session_state.cart.append({"Product": product, "Quantity": quantity, "Unit Price": price, "Total": total})
+                    st.success(f"Added {quantity} x {product}")
+                if st.session_state.cart:
+                    cart_df = pd.DataFrame(st.session_state.cart)
+                    st.dataframe(cart_df)
+                    st.subheader(f"🧾 Grand Total: ${cart_df['Total'].sum():.2f}")
+            except Exception as e:
+                st.error(f"Calculation error: {e}")
     else:
         st.info("Upload inventory data first.")
 
-# Reports & Analysis
+# REPORTS
 elif menu == "Reports":
-    st.title("📈 Sales Analysis & Demand Forecasting")
+    st.title("📈 Reports & Forecasting")
     if df is not None:
         if 'Last_Order_Date' in df.columns:
             df['Last_Order_Date'] = pd.to_datetime(df['Last_Order_Date'], errors='coerce')
-            fig = px.line(df, x='Last_Order_Date', y='Sales_Volume', title="Sales Trends")
-            st.plotly_chart(fig)
-
+            st.plotly_chart(px.line(df, x='Last_Order_Date', y='Sales_Volume', title="Sales Trends"))
         if 'Date_Received' in df.columns and 'Sales_Volume' in df.columns:
             df['Date_Received'] = pd.to_datetime(df['Date_Received'], errors='coerce')
             df['Days_Since_Received'] = (datetime.today() - df['Date_Received']).dt.days
@@ -164,18 +140,40 @@ elif menu == "Reports":
             if not X.empty and not y.empty:
                 model = LinearRegression()
                 model.fit(X, y)
-                future_days = np.array([[30], [60], [90]])
-                predictions = model.predict(future_days)
-                st.write("### 🔮 Demand Forecasting")
-                for i, day in enumerate([30, 60, 90]):
-                    st.write(f"Predicted Sales in {day} days: **{predictions[i]:.2f}** units")
+                predictions = model.predict(np.array([[30], [60], [90]]))
+                st.write("### 🔮 Demand Forecast")
+                for d, p in zip([30, 60, 90], predictions):
+                    st.write(f"In {d} days: **{p:.2f}** units")
     else:
-        st.info("Upload sales data first.")
+        st.info("Upload data first.")
 
-# Supplier Management
+# SUPPLIERS
 elif menu == "Suppliers":
     st.title("🏪 Supplier Management")
     if df is not None:
         st.dataframe(df[['Supplier_Name', 'Supplier_ID', 'Warehouse_Location']])
     else:
-        st.info("Upload inventory data first.")
+        st.info("Upload data first.")
+
+# FEEDBACK
+elif menu == "Customer Feedback":
+    st.title("💬 Customer Feedback")
+    with st.form("feedback_form", clear_on_submit=True):
+        st.subheader("📝 Submit Feedback")
+        name = st.text_input("Name")
+        email = st.text_input("Email")
+        message = st.text_area("Feedback")
+        rating = st.slider("Rating", 1, 5, 3)
+        submit = st.form_submit_button("Submit")
+        if submit:
+            fb = {"Name": name, "Email": email, "Feedback": message, "Rating": rating, "Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+            if "feedback_data" not in st.session_state:
+                st.session_state.feedback_data = []
+            st.session_state.feedback_data.append(fb)
+            st.success("Thanks for your feedback!")
+    if st.session_state.user_role == "admin":
+        st.subheader("📋 Feedbacks")
+        if "feedback_data" in st.session_state:
+            st.dataframe(pd.DataFrame(st.session_state.feedback_data))
+        else:
+            st.info("No feedback yet.")
