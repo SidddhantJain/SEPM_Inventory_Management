@@ -96,8 +96,17 @@ elif menu == "Cashier":
     if df is not None:
         product = st.selectbox("Select a product", df['Product_Name'])
         quantity = st.number_input("Enter Quantity", min_value=1, value=1)
-        product_row = df[df['Product_Name'] == product].iloc[0]
-        price = product_row['Unit_Price']
+        product_row = df[df['Product_Name'] == product]
+    if not product_row.empty and 'Unit_Price' in product_row.columns:
+        price = product_row['Unit_Price'].values[0]
+        total = quantity * price
+        st.metric("Total", f"${total:.2f}")
+    else:
+        st.error("Selected product doesn't have a valid price.")
+        price = 0
+        total = 0
+
+        
         total = quantity * price
         st.metric("Total", f"${total:.2f}")
 
