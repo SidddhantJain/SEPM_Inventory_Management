@@ -1,11 +1,6 @@
-streamlit
-pandas
-numpy
-matplotlib
-seaborn
-scikit-learn
-openpyxl
-hashlib
-datetime 
-sklearn.linear_model
-plotly.express
+streamlit>=1.32.0
+pandas>=2.2.1
+numpy>=1.26.4
+plotly>=5.20.0
+scikit-learn>=1.4.1
+openpyxl>=3.1.2
