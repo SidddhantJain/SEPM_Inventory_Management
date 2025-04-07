@@ -1,148 +1,174 @@
+# Smart Inventory Management System with Advanced Features
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.express as px
 from sklearn.linear_model import LinearRegression
 from datetime import datetime
+import hashlib
 
-# Set Streamlit Page Configuration
-st.set_page_config(page_title="Inventory Management", layout="wide")
+# ------------------------
+# Helper functions
+# ------------------------
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
-# Sidebar Navigation
-st.sidebar.title("MENU")
-menu = st.sidebar.radio("Go to", ["Dashboard", "Inventory", "Cashier", "Reports", "Suppliers"])
+# Dummy users database (for demo)
+users = {
+    "admin": hash_password("admin123"),
+    "staff": hash_password("staffpass")
+}
 
-# Function to load data
+# Auth
+if "auth" not in st.session_state:
+    st.session_state.auth = False
+    st.session_state.username = ""
+
+if not st.session_state.auth:
+    with st.form("Login"):
+        st.subheader("🔐 Login")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        login = st.form_submit_button("Login")
+
+        if login:
+            if username in users and hash_password(password) == users[username]:
+                st.session_state.auth = True
+                st.session_state.username = username
+                st.success("Login successful")
+            else:
+                st.error("Invalid credentials")
+    st.stop()
+
+# ------------------------
+# App config and theme
+# ------------------------
+st.set_page_config(page_title="Smart Inventory", layout="wide")
+
+# Dark/Light mode
+st.sidebar.markdown("## Theme")
+dark_mode = st.sidebar.toggle("🌙 Dark Mode")
+if dark_mode:
+    st.markdown('<style>body { background-color: #1e1e1e; color: white; }</style>', unsafe_allow_html=True)
+
+# Upload
+st.sidebar.header("📂 Upload Data")
+uploaded_file = st.sidebar.file_uploader("Upload Inventory File", type=["csv", "xlsx"])
+menu = st.sidebar.radio("Navigate", ["Dashboard", "Inventory", "Cashier", "Reports", "Suppliers"])
+
 @st.cache_data
-def load_data(file):
-    file_extension = file.name.split('.')[-1]
-    if file_extension == "csv":
-        df = pd.read_csv(file)
-    elif file_extension in ["xlsm", "xlsx"]:
-        df = pd.read_excel(file, engine='openpyxl')
-    else:
-        st.error("Unsupported file format. Upload CSV or Excel files only.")
-        return None
-    return df
 
-# File Upload
-uploaded_file = st.sidebar.file_uploader("Upload Inventory Data (CSV/XLSM)", type=["csv", "xlsm"])
+def load_data(file):
+    ext = file.name.split('.')[-1]
+    if ext == "csv":
+        return pd.read_csv(file)
+    return pd.read_excel(file, engine='openpyxl')
+
 df = load_data(uploaded_file) if uploaded_file else None
 
+# ------------------------
 # Dashboard
+# ------------------------
 if menu == "Dashboard":
-    st.title("📊 Inventory Dashboard")
-    
+    st.title("📦 Inventory Dashboard")
     if df is not None:
-        st.write("### Current Stock Overview")
-        st.dataframe(df[['Product_Name', 'Stock_Quantity', 'Reorder_Level', 'Unit_Price']])
-
-        # Stock Status Alert
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Products", df['Product_Name'].nunique())
+        col2.metric("Total Stock", int(df['Stock_Quantity'].sum()))
         low_stock = df[df['Stock_Quantity'] < df['Reorder_Level']]
-        if not low_stock.empty:
-            st.warning(f"⚠️ {len(low_stock)} products are below the reorder level!")
+        col3.metric("Low Stock Items", low_stock.shape[0])
 
-        # Inventory Turnover Rate Analysis
-        if 'Inventory_Turnover_Rate' in df.columns:
-            st.write("### Inventory Turnover Analysis")
-            plt.figure(figsize=(10, 5))
-            sns.barplot(x=df['Product_Name'], y=df['Inventory_Turnover_Rate'])
-            plt.xticks(rotation=90)
-            st.pyplot(plt)
+        st.markdown("### 📈 Stock Levels")
+        fig = px.bar(df, x='Product_Name', y='Stock_Quantity', color='Stock_Quantity', height=400)
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown("### 📥 Download Inventory")
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button("Download CSV", csv, "inventory.csv", "text/csv")
     else:
-        st.info("Please upload inventory data.")
+        st.info("Upload a file to begin.")
 
-# Inventory Management
+# ------------------------
+# Inventory
+# ------------------------
 elif menu == "Inventory":
-    st.title("📦 Inventory Management")
-
+    st.title("🗃️ Inventory Viewer")
     if df is not None:
-        st.dataframe(df)
-        search = st.text_input("Search Product", "")
-        if search:
-            results = df[df['Product_Name'].str.contains(search, case=False, na=False)]
-            if not results.empty:
-                st.write("### Search Results")
-                st.dataframe(results)
-            else:
-                st.warning("No matching products found.")
+        edited_df = st.data_editor(df, use_container_width=True, num_rows="dynamic")
+        st.download_button("Download Updated Data", edited_df.to_csv(index=False).encode(), "updated_inventory.csv")
+    else:
+        st.info("Upload a file to begin.")
+
+# ------------------------
+# Cashier
+# ------------------------
+elif menu == "Cashier":
+    st.title("🛒 Cashier")
+    if df is not None:
+        if 'cart' not in st.session_state:
+            st.session_state.cart = []
+
+        product = st.selectbox("Select Product", df['Product_Name'].unique())
+        quantity = st.number_input("Quantity", min_value=1)
+
+        price = df[df['Product_Name'] == product]['Unit_Price'].values[0]
+        total = quantity * price
+        st.markdown(f"### 💵 Total: ${total:.2f}")
+
+        if st.button("Add to Cart"):
+            st.session_state.cart.append({"Product": product, "Qty": quantity, "Total": total})
+            st.success("Added to cart")
+
+        if st.session_state.cart:
+            st.markdown("### 🧾 Cart")
+            st.dataframe(pd.DataFrame(st.session_state.cart))
+    else:
+        st.info("Upload inventory data first.")
+
+# ------------------------
+# Reports & Forecast
+# ------------------------
+elif menu == "Reports":
+    st.title("📊 Reports & Forecast")
+    if df is not None and 'Sales_Volume' in df.columns and 'Date_Received' in df.columns:
+        df['Date_Received'] = pd.to_datetime(df['Date_Received'], errors='coerce')
+        df['Days_Since_Received'] = (datetime.today() - df['Date_Received']).dt.days
+
+        df.dropna(subset=['Sales_Volume', 'Days_Since_Received'], inplace=True)
+        X = df[['Days_Since_Received']]
+        y = df['Sales_Volume']
+
+        model = LinearRegression()
+        model.fit(X, y)
+
+        future_days = np.array([[30], [60], [90]])
+        preds = model.predict(future_days)
+
+        st.subheader("🔮 Forecasted Sales")
+        forecast_df = pd.DataFrame({
+            'Days From Now': [30, 60, 90],
+            'Predicted Volume': preds.round(2)
+        })
+        st.table(forecast_df)
+    else:
+        st.warning("Forecasting needs 'Sales_Volume' and 'Date_Received' columns.")
+
+# ------------------------
+# Suppliers
+# ------------------------
+elif menu == "Suppliers":
+    st.title("🏪 Suppliers")
+    if df is not None:
+        st.dataframe(df[['Supplier_Name', 'Supplier_ID', 'Warehouse_Location']], use_container_width=True)
+        with st.expander("Add Supplier"):
+            name = st.text_input("Name")
+            sid = st.text_input("ID")
+            location = st.text_input("Location")
+            if st.button("Add"):
+                df.loc[len(df)] = [None]*len(df.columns)  # Add empty row
+                df.at[df.index[-1], 'Supplier_Name'] = name
+                df.at[df.index[-1], 'Supplier_ID'] = sid
+                df.at[df.index[-1], 'Warehouse_Location'] = location
+                st.success("Supplier added")
     else:
         st.info("Upload data first.")
-
-# Cashier System
-elif menu == "Cashier":
-    st.title("🛒 Cashier System")
-
-    if df is not None:
-        st.write("### Select Products")
-        product = st.selectbox("Select a product", df['Product_Name'])
-        quantity = st.number_input("Enter Quantity", min_value=1, value=1)
-        
-        product_row = df[df['Product_Name'] == product]
-        if not product_row.empty:
-            price = product_row['Unit_Price'].values[0]
-            total = quantity * price
-            st.write(f"Total: **${total:.2f}**")
-
-            if st.button("Add to Cart"):
-                st.success(f"{quantity} x {product} added to cart!")
-    else:
-        st.info("Upload inventory data first.")
-
-# Reports & Analysis
-elif menu == "Reports":
-    st.title("📈 Sales Analysis & Demand Forecasting")
-
-    if df is not None:
-        if 'Last_Order_Date' in df.columns:
-            df['Last_Order_Date'] = pd.to_datetime(df['Last_Order_Date'], errors='coerce')
-
-            st.write("### Sales Trends")
-            plt.figure(figsize=(10, 5))
-            sns.lineplot(x=df['Last_Order_Date'], y=df['Sales_Volume'])
-            plt.xticks(rotation=45)
-            st.pyplot(plt)
-
-        # Demand Forecasting using Linear Regression
-        if 'Date_Received' in df.columns and 'Sales_Volume' in df.columns:
-            df['Date_Received'] = pd.to_datetime(df['Date_Received'], errors='coerce')
-            df['Days_Since_Received'] = (datetime.today() - df['Date_Received']).dt.days
-
-            X = df[['Days_Since_Received']].dropna()
-            y = df['Sales_Volume'].dropna()
-            if not X.empty and not y.empty:
-                model = LinearRegression()
-                model.fit(X, y)
-
-                future_days = np.array([[30], [60], [90]])
-                predictions = model.predict(future_days)
-
-                st.write("### Demand Forecasting")
-                st.write(f"Predicted Sales in 30 days: **{predictions[0]:.2f}** units")
-                st.write(f"Predicted Sales in 60 days: **{predictions[1]:.2f}** units")
-                st.write(f"Predicted Sales in 90 days: **{predictions[2]:.2f}** units")
-    else:
-        st.info("Upload sales data first.")
-
-# Supplier Management
-elif menu == "Suppliers":
-    st.title("🏪 Supplier Management")
-
-    if df is not None:
-        st.dataframe(df[['Supplier_Name', 'Supplier_ID', 'Warehouse_Location']])
-        
-        supplier_name = st.text_input("Supplier Name")
-        supplier_id = st.text_input("Supplier ID")
-        location = st.text_input("Warehouse Location")
-
-        if st.button("Add Supplier"):
-            new_supplier = pd.DataFrame([{
-                'Supplier_Name': supplier_name,
-                'Supplier_ID': supplier_id,
-                'Warehouse_Location': location
-            }])
-            df = pd.concat([df, new_supplier], ignore_index=True)
-            st.success(f"Supplier {supplier_name} added successfully!")
-    else:
-        st.info("Upload inventory data first.")
