@@ -52,6 +52,32 @@ def load_data(file):
 uploaded_file = st.sidebar.file_uploader("Upload Inventory Data (CSV/XLSM)", type=["csv", "xlsm"])
 df = load_data(uploaded_file) if uploaded_file else None
 
+# Admin Panel
+if st.session_state.user_role == "admin":
+    with st.expander("⚙️ Admin Tools"):
+        st.subheader("📁 Upload New Inventory")
+        new_file = st.file_uploader("Upload New Inventory File", type=["csv", "xlsm"], key="admin_upload")
+        if new_file:
+            df = load_data(new_file)
+            st.success("New inventory loaded successfully!")
+
+        if df is not None:
+            st.subheader("⬇️ Export Current Inventory")
+            st.download_button("Download Inventory CSV", df.to_csv(index=False), file_name="exported_inventory.csv", mime="text/csv")
+
+            st.subheader("🏪 Manage Supplier Info")
+            supplier_name = st.text_input("Supplier Name")
+            supplier_id = st.text_input("Supplier ID")
+            location = st.text_input("Warehouse Location")
+            if st.button("Add Supplier"):
+                new_supplier = pd.DataFrame([{
+                    'Supplier_Name': supplier_name,
+                    'Supplier_ID': supplier_id,
+                    'Warehouse_Location': location
+                }])
+                df = pd.concat([df, new_supplier], ignore_index=True)
+                st.success(f"Supplier {supplier_name} added successfully!")
+
 # Dashboard
 if menu == "Dashboard":
     st.title("📊 Inventory Dashboard")
@@ -68,7 +94,6 @@ if menu == "Dashboard":
             fig = px.bar(df, x='Product_Name', y='Inventory_Turnover_Rate', title="Turnover Rate by Product")
             st.plotly_chart(fig)
 
-        # Download Button
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Download Current Inventory", csv, "inventory.csv", "text/csv")
     else:
@@ -97,32 +122,28 @@ elif menu == "Cashier":
         product = st.selectbox("Select a product", df['Product_Name'])
         quantity = st.number_input("Enter Quantity", min_value=1, value=1)
         product_row = df[df['Product_Name'] == product]
-    if not product_row.empty and 'Unit_Price' in product_row.columns:
-        price = product_row['Unit_Price'].values[0]
-        total = quantity * price
-        st.metric("Total", f"${total:.2f}")
-    else:
-        st.error("Selected product doesn't have a valid price.")
-        price = 0
-        total = 0
-        total = quantity * price
-        st.metric("Total", f"${total:.2f}")
+        if not product_row.empty and 'Unit_Price' in product_row.columns:
+            price = product_row['Unit_Price'].values[0]
+            total = quantity * price
+            st.metric("Total", f"${total:.2f}")
 
-        if st.button("Add to Cart"):
-            st.session_state.cart.append({
-                "Product": product,
-                "Quantity": quantity,
-                "Unit Price": price,
-                "Total": total
-            })
-            st.success(f"{quantity} x {product} added to cart!")
+            if st.button("Add to Cart"):
+                st.session_state.cart.append({
+                    "Product": product,
+                    "Quantity": quantity,
+                    "Unit Price": price,
+                    "Total": total
+                })
+                st.success(f"{quantity} x {product} added to cart!")
 
-        if st.session_state.cart:
-            st.write("### 🧺 Cart Summary")
-            cart_df = pd.DataFrame(st.session_state.cart)
-            st.dataframe(cart_df)
-            grand_total = cart_df['Total'].sum()
-            st.subheader(f"🧾 Grand Total: ${grand_total:.2f}")
+            if st.session_state.cart:
+                st.write("### 🧺 Cart Summary")
+                cart_df = pd.DataFrame(st.session_state.cart)
+                st.dataframe(cart_df)
+                grand_total = cart_df['Total'].sum()
+                st.subheader(f"🧾 Grand Total: ${grand_total:.2f}")
+        else:
+            st.error("Selected product doesn't have a valid price.")
     else:
         st.info("Upload inventory data first.")
 
@@ -156,19 +177,5 @@ elif menu == "Suppliers":
     st.title("🏪 Supplier Management")
     if df is not None:
         st.dataframe(df[['Supplier_Name', 'Supplier_ID', 'Warehouse_Location']])
-        if st.session_state.user_role == "admin":
-            supplier_name = st.text_input("Supplier Name")
-            supplier_id = st.text_input("Supplier ID")
-            location = st.text_input("Warehouse Location")
-            if st.button("Add Supplier"):
-                new_supplier = pd.DataFrame([{
-                    'Supplier_Name': supplier_name,
-                    'Supplier_ID': supplier_id,
-                    'Warehouse_Location': location
-                }])
-                df = pd.concat([df, new_supplier], ignore_index=True)
-                st.success(f"Supplier {supplier_name} added successfully!")
-        else:
-            st.warning("Only admins can add new suppliers.")
     else:
         st.info("Upload inventory data first.")
