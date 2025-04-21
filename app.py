@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from datetime import datetime
+from sklearn.metrics import classification_report, f1_score
 
 # Page Config
 st.set_page_config(page_title="Smart Inventory", layout="wide")
@@ -91,18 +92,21 @@ if st.session_state.user_role == "admin":
 # Dashboard
 if menu == "Dashboard":
     st.title("📊 Dashboard Overview")
-    if df is not None:
+
+    if df is not None and not df.empty:
+
         st.subheader("📋 Inventory Summary")
         st.dataframe(df[['Product_Name', 'Stock_Quantity', 'Reorder_Level', 'Unit_Price']], use_container_width=True)
 
+        # 📉 Low Stock Alert
         low_stock = df[df['Stock_Quantity'] < df['Reorder_Level']]
         if not low_stock.empty:
             st.warning(f"⚠️ {len(low_stock)} products are below reorder level")
+            st.dataframe(low_stock[['Product_Name', 'Stock_Quantity', 'Reorder_Level']], use_container_width=True)
 
+        # 🔄 Inventory Turnover Rate Visualization
         if 'Inventory_Turnover_Rate' in df.columns:
             st.subheader("🔄 Inventory Turnover Rate by Product")
-
-            # Sort data for better readability
             turnover_sorted = df.sort_values(by='Inventory_Turnover_Rate', ascending=False)
 
             fig_turnover = px.bar(
@@ -117,8 +121,6 @@ if menu == "Dashboard":
                 },
                 text='Inventory_Turnover_Rate'
             )
-
-            # Make layout more readable
             fig_turnover.update_layout(
                 xaxis_tickangle=-45,
                 xaxis_tickfont=dict(size=10),
@@ -129,11 +131,41 @@ if menu == "Dashboard":
                 height=500
             )
             fig_turnover.update_traces(texttemplate='%{text:.2f}', textposition='outside')
-
             st.plotly_chart(fig_turnover, use_container_width=True)
 
+        # 📦 Stock by Category
+        if 'Category' in df.columns and 'Stock_Quantity' in df.columns:
+            st.subheader("📦 Stock Distribution by Category")
+            category_stock = df.groupby('Category')['Stock_Quantity'].sum().reset_index()
+            fig_category = px.pie(category_stock, names='Category', values='Stock_Quantity',
+                                  title="Stock Quantity by Category")
+            st.plotly_chart(fig_category, use_container_width=True)
+
+        # 🧠 Optional: Show Prediction Evaluation (if available)
+        if all(col in df.columns for col in ['Actual_Sales', 'Predicted_Sales']):
+            from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+
+            y_true = df['Actual_Sales']
+            y_pred = df['Predicted_Sales']
+
+            mse = mean_squared_error(y_true, y_pred)
+            mae = mean_absolute_error(y_true, y_pred)
+            r2 = r2_score(y_true, y_pred)
+            f1 = f1_score(y_true, y_pred, average='weighted')  # or 'macro'
+        
+
+            st.subheader("📊 Model Performance Metrics")
+            st.metric("📐 MAE (Mean Absolute Error)", f"{mae:.2f}")
+            st.metric("📏 MSE (Mean Squared Error)", f"{mse:.2f}")
+            st.metric("🎯 R² Score", f"{r2:.2f}")
+            st.metric("🔁 F1 Score", f"{f1:.2f}")
+
+
     else:
-        st.info("Please upload inventory data to proceed.")
+        st.info("📂 Please upload inventory data to proceed.")
+        from sklearn.metrics import classification_report, f1_score
+
+        
 
 # Inventory Management
 elif menu == "Inventory":
