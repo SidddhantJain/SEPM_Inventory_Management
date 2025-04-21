@@ -6,15 +6,25 @@ A powerful, intelligent inventory management web application built with 🐍 Pyt
 
 🚀 Features
 ✅ Inventory Dashboard
+
 ✅ Product & Supplier Management
+
 ✅ Interactive Reports & Visualizations
+
 ✅ Sales Forecasting (Linear Regression)
+
 ✅ Smart Alerts (Low Stock, Supplier Distribution)
+
 ✅ Reorder Heatmap & Top Selling Products
+
 ✅ Point of Sale (Cashier Mode)
+
 ✅ Invoice Generation with Download
+
 ✅ User Authentication (optional)
+
 ✅ Mobile-friendly UI via Streamlit
+
 
 🖥️ Modules Overview
 📦 Inventory
@@ -82,50 +92,54 @@ UUID: For invoice generation
 
 📁 Required CSV Format
 Ensure your inventory CSV file includes the following columns:
-
-Product_Name
-
-Category
-
-Supplier_Name
-
-Warehouse_Location
-
-Status
-
-Product_ID
-
-Supplier_ID
-
-Date_Received
-
-Last_Order_Date
-
-Expiration_Date
-
-Stock_Quantity
-
-Reorder_Level
-
-Reorder_Quantity
-
-Unit_Price
-
-Sales_Volume
-
-Inventory_Turnover_Rate
-![image](https://github.com/user-attachments/assets/168d50fc-4f4b-4199-a29c-a407f28b1fb7)
+                
+                Product_Name
+                
+                Category
+                
+                Supplier_Name
+                
+                Warehouse_Location
+                
+                Status
+                
+                Product_ID
+                
+                Supplier_ID
+                
+                Date_Received
+                
+                Last_Order_Date
+                
+                Expiration_Date
+                
+                Stock_Quantity
+                
+                Reorder_Level
+                
+                Reorder_Quantity
+                
+                Unit_Price
+                
+                Sales_Volume
 
 
 📸 Screenshots
 
+Inventory_Turnover_Rate
+
+![image](https://github.com/user-attachments/assets/168d50fc-4f4b-4199-a29c-a407f28b1fb7)
+
 DashBoard 
+
 ![image](https://github.com/user-attachments/assets/61541a01-0653-40a5-b4c0-c0b7fe7c8456)
 
 Inventory View
+
 ![image](https://github.com/user-attachments/assets/721f8f01-88e9-456e-add4-fc015e92d903)
 
 Forecast Charts
+
 1) ![image](https://github.com/user-attachments/assets/05720e93-5476-43e8-953c-49f427c698a8)
 
 2) ![image](https://github.com/user-attachments/assets/6289c5c5-6066-44f3-9f1e-f3a3352e90f4)
@@ -136,9 +150,11 @@ Forecast Charts
 
 
 Cashier Checkout
+
 ![image](https://github.com/user-attachments/assets/79ca2929-7c34-4b5a-9004-8a13cc878c9d)
 
 Invoice Download
+
 ![image](https://github.com/user-attachments/assets/c2cf235e-bcaa-4868-9e79-e876fa6c69eb)
 
 
