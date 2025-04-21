@@ -146,43 +146,35 @@ elif menu == "Inventory":
 # Cashier
 elif menu == "Cashier":
     st.title("🛒 Point of Sale (Cashier)")
-    # Ensure df is loaded
 
-# Check if the dataframe is loaded and contains data
+    if 'cart' not in st.session_state:
+        st.session_state.cart = []
+
     if df is not None and not df.empty:
-        # Product Selection
         try:
             product_names = df['Product_Name'].dropna().unique()
-            
+
             if len(product_names) == 0:
                 st.warning("⚠️ No products available in the uploaded data.")
             else:
-                # Create a layout with columns for a clean display
                 col1, col2 = st.columns([2, 1])
-                
+
                 with col1:
-                    # Product selection dropdown
                     product = st.selectbox("🛍️ Select Product", product_names)
-                    
+
                 with col2:
-                    # Quantity input
                     quantity = st.number_input("🔢 Quantity", min_value=1, value=1, step=1)
-                
-                # Get the product row from the dataframe
+
                 row = df[df['Product_Name'] == product]
-                
+
                 if not row.empty:
                     try:
-                        # Clean and convert price to float (removing '$' symbol)
-                        price_str = row['Unit_Price'].values[0]
-                        price_str_cleaned = price_str.replace('$', '').strip()  # Remove '$' and spaces
-                        price = float(price_str_cleaned)  # Convert cleaned string to float
+                        price_str = str(row['Unit_Price'].values[0])
+                        price = float(price_str.replace('$', '').strip())
                         total = quantity * price
 
-                        # Display the total dynamically
-                        st.metric("🧾 Total", f"₹{total:.2f}", delta=None)
+                        st.metric("🧾 Total", f"₹{total:.2f}")
 
-                        # Add to cart button with success message
                         if st.button("➕ Add to Cart", key=f"{product}_add"):
                             st.session_state.cart.append({
                                 "Product": product,
@@ -192,23 +184,55 @@ elif menu == "Cashier":
                             })
                             st.success(f"✅ Added {quantity} x {product} to cart")
 
-                        # Display Cart Section
-                        if st.session_state.cart:
-                            st.subheader("🛒 Cart Details")
-                            cart_df = pd.DataFrame(st.session_state.cart)
-                            st.dataframe(cart_df, use_container_width=True)
-
-                            grand_total = cart_df["Total"].sum()
-                            st.subheader(f"💰 Grand Total: ₹{grand_total:.2f}")
-
                     except Exception as e:
                         st.error(f"❌ Error calculating price: {e}")
                 else:
                     st.error("❌ Selected product not found in data.")
+
+            # Cart & Checkout Section
+            if st.session_state.cart:
+                st.subheader("🛒 Cart Details")
+                cart_df = pd.DataFrame(st.session_state.cart)
+                st.dataframe(cart_df, use_container_width=True)
+
+                grand_total = cart_df["Total"].sum()
+                st.subheader(f"💰 Grand Total: ₹{grand_total:.2f}")
+
+                if st.button("🧾 Checkout & Generate Invoice"):
+                    from datetime import datetime
+                    import uuid
+
+                    invoice_id = str(uuid.uuid4())[:8].upper()
+                    date_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                    st.success("✅ Invoice generated!")
+
+                    st.markdown(f"""
+                        ### 🧾 Invoice ID: `{invoice_id}`
+                        ⏰ Date: {date_now}  
+                        💵 Total Amount: ₹{grand_total:.2f}  
+                    """)
+
+                    invoice_df = cart_df.copy()
+                    invoice_df["Invoice_ID"] = invoice_id
+                    invoice_df["Date"] = date_now
+
+                    csv = invoice_df.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="⬇️ Download Invoice CSV",
+                        data=csv,
+                        file_name=f"Invoice_{invoice_id}.csv",
+                        mime='text/csv'
+                    )
+
+                    st.info("🧹 Cart has been cleared.")
+                    st.session_state.cart.clear()
+
         except KeyError:
             st.error("❌ 'Product_Name' or 'Unit_Price' column missing in uploaded file.")
     else:
         st.info("📂 Please upload inventory data first.")
+
 
 # Reports
 # Reports
