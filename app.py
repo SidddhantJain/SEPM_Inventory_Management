@@ -11,6 +11,9 @@ from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from datetime import datetime
 from sklearn.metrics import classification_report, f1_score
+import seaborn as sns
+
+
 
 # Page Config
 st.set_page_config(page_title="Smart Inventory", layout="wide")
