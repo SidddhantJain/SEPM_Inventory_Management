@@ -394,11 +394,11 @@ elif menu == "Reports":
                 with st.container():
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.markdown("<div style='color:black'><strong>MAE</strong><br>{:.2f}</div>".format(mean_absolute_error(y, y_train_pred)), unsafe_allow_html=True)
+                        st.markdown("<div style='color:white'><strong>MAE</strong><br>{:.2f}</div>".format(mean_absolute_error(y, y_train_pred)), unsafe_allow_html=True)
                     with col2:
-                        st.markdown("<div style='color:black'><strong>MSE</strong><br>{:.2f}</div>".format(mean_squared_error(y, y_train_pred)), unsafe_allow_html=True)
+                        st.markdown("<div style='color:white'><strong>MSE</strong><br>{:.2f}</div>".format(mean_squared_error(y, y_train_pred)), unsafe_allow_html=True)
                     with col3:
-                        st.markdown("<div style='color:black'><strong>R²</strong><br>{:.2f}</div>".format(r2_score(y, y_train_pred)), unsafe_allow_html=True)
+                        st.markdown("<div style='color:white'><strong>R²</strong><br>{:.2f}</div>".format(r2_score(y, y_train_pred)), unsafe_allow_html=True)
     
                 # Optional Confusion Matrix (only if predictions are integer and suitable for classification-like eval)
                 if np.array_equal(y, y.astype(int)) and np.array_equal(y_train_pred.round(), y_train_pred.round().astype(int)):
