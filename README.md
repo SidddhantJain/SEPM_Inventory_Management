@@ -2,9 +2,13 @@
 SEPM_Inventory_Management
 
 🧠 Smart Inventory Management System
-A powerful, intelligent inventory management web application built with 🐍 Python, Streamlit, Pandas, Plotly, and Scikit-Learn. It helps businesses track stock, manage suppliers, monitor sales, generate forecasts, and checkout items with invoice generation.
+
+A powerful, intelligent inventory management web application built with 
+
+🐍 Python, Streamlit, Pandas, Plotly, and Scikit-Learn. It helps businesses track stock, manage suppliers, monitor sales, generate forecasts, and checkout items with invoice generation.
 
 🚀 Features
+
 ✅ Inventory Dashboard
 
 ✅ Product & Supplier Management
