@@ -331,9 +331,7 @@ elif menu == "Reports":
                                   title="Stock Supplied by Each Supplier",
                                   labels={'Stock_Quantity': 'Units in Stock'})
             st.plotly_chart(fig_supplier, use_container_width=True)
-         else:
-            st.info("📂 Please upload inventory data to generate reports.")
-
+         
 # Forecasting for Specific Product with Model Comparison
     if all(col in df.columns for col in ['Product_Name', 'Date_Received', 'Sales_Volume']):
         st.subheader("🔮 Forecast: Predict Future Sales for a Product")
