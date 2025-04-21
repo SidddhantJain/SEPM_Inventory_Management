@@ -333,64 +333,94 @@ elif menu == "Reports":
             st.plotly_chart(fig_supplier, use_container_width=True)
 
         # Forecasting for Specific Product
-        if all(col in df.columns for col in ['Product_Name', 'Date_Received', 'Sales_Volume']):
-            st.subheader("🔮 Forecast: Predict Future Sales for a Product")
-
-            product_list = df['Product_Name'].dropna().unique()
-            selected_product = st.selectbox("Select Product to Forecast", product_list)
-            model_choice = st.selectbox("Select Forecasting Model", ["Linear Regression", "Random Forest", "XGBoost"])
-
-            product_df = df[df['Product_Name'] == selected_product].copy()
-            product_df['Date_Received'] = pd.to_datetime(product_df['Date_Received'], errors='coerce')
-            product_df = product_df.dropna(subset=['Date_Received', 'Sales_Volume'])
-
-            if not product_df.empty:
-                product_df['Days_Since_Received'] = (datetime.today() - product_df['Date_Received']).dt.days
-                forecast_df = product_df[['Days_Since_Received', 'Sales_Volume']].dropna()
-
-                if not forecast_df.empty:
-                    from sklearn.linear_model import LinearRegression
-                    from sklearn.ensemble import RandomForestRegressor
-                    from xgboost import XGBRegressor
-                    from sklearn.metrics import r2_score, mean_absolute_error
-
-                    X = forecast_df[['Days_Since_Received']]
-                    y = forecast_df['Sales_Volume']
-
-                    if model_choice == "Linear Regression":
-                        model = LinearRegression()
-                    elif model_choice == "Random Forest":
-                        model = RandomForestRegressor(n_estimators=100, random_state=42)
-                    elif model_choice == "XGBoost":
-                        model = XGBRegressor(n_estimators=100, learning_rate=0.1)
-
-                    model.fit(X, y)
-                    y_pred = model.predict(X)
-                    r2 = r2_score(y, y_pred)
-                    mae = mean_absolute_error(y, y_pred)
-
-                    future_days = np.array([[30], [60], [90]])
-                    predictions = model.predict(future_days)
-
-                    forecast_data = pd.DataFrame({
-                        "Days Ahead": [30, 60, 90],
-                        "Predicted Sales": predictions
-                    })
-
-                    fig_forecast = px.bar(forecast_data, x="Days Ahead", y="Predicted Sales",
-                                          title=f"Predicted Sales for '{selected_product}' in Coming Days",
-                                          text_auto='.2f')
-                    st.plotly_chart(fig_forecast, use_container_width=True)
-
-                    for d, p in zip([30, 60, 90], predictions):
-                        st.write(f"📦 In {d} days: **{p:.2f}** units expected for **{selected_product}**")
-
-                    st.markdown(f"**Model Accuracy (R²):** {r2:.2f}")
-                    st.markdown(f"**Mean Absolute Error (MAE):** {mae:.2f}")
-                else:
-                    st.warning("⚠️ Not enough data to forecast this product.")
+# Forecasting for Specific Product with Model Comparison
+    # Forecasting for Specific Product with Model Comparison
+# Forecasting for Specific Product with Model Comparison
+    if all(col in df.columns for col in ['Product_Name', 'Date_Received', 'Sales_Volume']):
+        st.subheader("🔮 Forecast: Predict Future Sales for a Product")
+    
+        product_list = df['Product_Name'].dropna().unique()
+        selected_product = st.selectbox("Select Product to Forecast", product_list)
+        selected_model = st.selectbox("Select Forecasting Model", ["Linear Regression", "Random Forest", "XGBoost", "SVR", "Prophet"])
+    
+        product_df = df[df['Product_Name'] == selected_product].copy()
+        product_df['Date_Received'] = pd.to_datetime(product_df['Date_Received'], errors='coerce')
+        product_df = product_df.dropna(subset=['Date_Received', 'Sales_Volume'])
+    
+        if not product_df.empty:
+            product_df = product_df.sort_values('Date_Received')
+            future_dates = pd.date_range(product_df['Date_Received'].max() + pd.Timedelta(days=1),
+                                         periods=30, freq='D')
+    
+            if selected_model == "Prophet":
+                prophet_df = product_df.rename(columns={'Date_Received': 'ds', 'Sales_Volume': 'y'})[['ds', 'y']]
+                model = Prophet()
+                model.fit(prophet_df)
+                future = model.make_future_dataframe(periods=30)
+                forecast = model.predict(future)
+    
+                fig = px.line()
+                fig.add_scatter(x=prophet_df['ds'], y=prophet_df['y'], mode='lines+markers', name='Historical')
+                fig.add_scatter(x=forecast['ds'], y=forecast['yhat'], mode='lines', name='Forecast')
+                st.plotly_chart(fig, use_container_width=True)
+    
             else:
-                st.warning("⚠️ Selected product has missing or invalid date/sales data.")
+                product_df['Days_Since'] = (product_df['Date_Received'] - product_df['Date_Received'].min()).dt.days
+                X = product_df[['Days_Since']]
+                y = product_df['Sales_Volume']
+    
+                if selected_model == "Linear Regression":
+                    model = LinearRegression()
+                elif selected_model == "Random Forest":
+                    model = RandomForestRegressor()
+                elif selected_model == "XGBoost":
+                    model = XGBRegressor()
+                elif selected_model == "SVR":
+                    model = SVR()
+    
+                model.fit(X, y)
+                future_days = np.arange(X['Days_Since'].max()+1, X['Days_Since'].max()+31).reshape(-1, 1)
+                y_pred = model.predict(future_days)
+    
+                future_dates = [product_df['Date_Received'].max() + pd.Timedelta(days=int(i)) for i in range(1, 31)]
+                pred_df = pd.DataFrame({"Date": future_dates, "Predicted_Sales": y_pred})
+    
+                fig = px.line()
+                fig.add_scatter(x=product_df['Date_Received'], y=product_df['Sales_Volume'], mode='lines+markers', name='Historical')
+                fig.add_scatter(x=pred_df['Date'], y=pred_df['Predicted_Sales'], mode='lines+markers', name='Forecast')
+                st.plotly_chart(fig, use_container_width=True)
+    
+                from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, confusion_matrix
+                y_train_pred = model.predict(X)
+    
+                st.subheader("📊 Model Performance")
+                st.metric("MAE", f"{mean_absolute_error(y, y_train_pred):.2f}")
+                st.metric("MSE", f"{mean_squared_error(y, y_train_pred):.2f}")
+                st.metric("R²", f"{r2_score(y, y_train_pred):.2f}")
+    
+                # Optional Confusion Matrix (only if predictions are integer and suitable for classification-like eval)
+                if np.array_equal(y, y.astype(int)) and np.array_equal(y_train_pred.round(), y_train_pred.round().astype(int)):
+                    st.subheader("🧮 Confusion Matrix (Rounded Sales)")
+    
+                    show_normalized = st.checkbox("Normalize Confusion Matrix")
+                    cm = confusion_matrix(y.astype(int), y_train_pred.round().astype(int), normalize='true' if show_normalized else None)
+    
+                    fig_cm = px.imshow(
+                        cm,
+                        text_auto=True,
+                        color_continuous_scale='blues',
+                        labels=dict(x="Predicted", y="Actual", color="Proportion" if show_normalized else "Count"),
+                        x=np.unique(y_train_pred.round()),
+                        y=np.unique(y.astype(int))
+                    )
+                    fig_cm.update_layout(title="Confusion Matrix", xaxis_title="Predicted Label", yaxis_title="Actual Label")
+                    st.plotly_chart(fig_cm, use_container_width=True)
+    
+        else:
+            st.warning("⚠️ Selected product has missing or invalid date/sales data.")
+
+
+
     else:
         st.info("📂 Please upload inventory data to generate reports.")
 
