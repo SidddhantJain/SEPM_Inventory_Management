@@ -295,13 +295,13 @@ elif menu == "Reports":
                                   labels={'Stock_Quantity': 'Units in Stock'})
             st.plotly_chart(fig_supplier, use_container_width=True)
 
-        
         # Forecasting for Specific Product
         if all(col in df.columns for col in ['Product_Name', 'Date_Received', 'Sales_Volume']):
             st.subheader("🔮 Forecast: Predict Future Sales for a Product")
 
             product_list = df['Product_Name'].dropna().unique()
             selected_product = st.selectbox("Select Product to Forecast", product_list)
+            model_choice = st.selectbox("Select Forecasting Model", ["Linear Regression", "Random Forest", "XGBoost"])
 
             product_df = df[df['Product_Name'] == selected_product].copy()
             product_df['Date_Received'] = pd.to_datetime(product_df['Date_Received'], errors='coerce')
@@ -312,10 +312,26 @@ elif menu == "Reports":
                 forecast_df = product_df[['Days_Since_Received', 'Sales_Volume']].dropna()
 
                 if not forecast_df.empty:
+                    from sklearn.linear_model import LinearRegression
+                    from sklearn.ensemble import RandomForestRegressor
+                    from xgboost import XGBRegressor
+                    from sklearn.metrics import r2_score, mean_absolute_error
+
                     X = forecast_df[['Days_Since_Received']]
                     y = forecast_df['Sales_Volume']
-                    model = LinearRegression()
+
+                    if model_choice == "Linear Regression":
+                        model = LinearRegression()
+                    elif model_choice == "Random Forest":
+                        model = RandomForestRegressor(n_estimators=100, random_state=42)
+                    elif model_choice == "XGBoost":
+                        model = XGBRegressor(n_estimators=100, learning_rate=0.1)
+
                     model.fit(X, y)
+                    y_pred = model.predict(X)
+                    r2 = r2_score(y, y_pred)
+                    mae = mean_absolute_error(y, y_pred)
+
                     future_days = np.array([[30], [60], [90]])
                     predictions = model.predict(future_days)
 
@@ -331,14 +347,15 @@ elif menu == "Reports":
 
                     for d, p in zip([30, 60, 90], predictions):
                         st.write(f"📦 In {d} days: **{p:.2f}** units expected for **{selected_product}**")
+
+                    st.markdown(f"**Model Accuracy (R²):** {r2:.2f}")
+                    st.markdown(f"**Mean Absolute Error (MAE):** {mae:.2f}")
                 else:
                     st.warning("⚠️ Not enough data to forecast this product.")
             else:
                 st.warning("⚠️ Selected product has missing or invalid date/sales data.")
     else:
         st.info("📂 Please upload inventory data to generate reports.")
-
-
 
 
 
