@@ -210,7 +210,7 @@ elif menu == "Cashier":
                 if not row.empty:
                     try:
                         price_str = str(row['Unit_Price'].values[0])
-                        price = float(price_str.replace('$', '').strip())
+                        price = (float(price_str.replace('$', '').strip()) *) 81.8
                         total = quantity * price
 
                         st.metric("🧾 Total", f"₹{total:.2f}")
